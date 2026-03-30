@@ -37,20 +37,30 @@ export function Spectrum({ bins, minDb = -100, maxDb = 0, width = 300, height = 
 
     if (bins.length === 0) return
 
+    const minBin = 1 // skip DC
+    const maxBin = bins.length - 1
+
+    // Map pixel x → interpolated dB using log scale
+    const dbAtPixel = (px: number): number => {
+      const binF  = minBin * Math.pow(maxBin / minBin, px / (width - 1))
+      const lo    = Math.floor(binF)
+      const hi    = Math.min(Math.ceil(binF), maxBin)
+      const t     = binF - lo
+      return bins[lo] * (1 - t) + bins[hi] * t
+    }
+
     // Gradient fill
     const gradient = ctx.createLinearGradient(0, 0, 0, height)
     gradient.addColorStop(0, color)
     gradient.addColorStop(1, `${color}33`)
 
-    // Filled spectrum shape
     ctx.fillStyle = gradient
     ctx.beginPath()
     ctx.moveTo(0, height)
-    bins.forEach((db, i) => {
-      const x = (i / (bins.length - 1)) * width
-      const y = Math.max(0, ((maxDb - db) / (maxDb - minDb)) * height)
-      ctx.lineTo(x, y)
-    })
+    for (let px = 0; px < width; px++) {
+      const y = Math.max(0, ((maxDb - dbAtPixel(px)) / (maxDb - minDb)) * height)
+      ctx.lineTo(px, y)
+    }
     ctx.lineTo(width, height)
     ctx.closePath()
     ctx.fill()
@@ -59,11 +69,10 @@ export function Spectrum({ bins, minDb = -100, maxDb = 0, width = 300, height = 
     ctx.strokeStyle = color
     ctx.lineWidth = 1.5
     ctx.beginPath()
-    bins.forEach((db, i) => {
-      const x = (i / (bins.length - 1)) * width
-      const y = Math.max(0, ((maxDb - db) / (maxDb - minDb)) * height)
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
-    })
+    for (let px = 0; px < width; px++) {
+      const y = Math.max(0, ((maxDb - dbAtPixel(px)) / (maxDb - minDb)) * height)
+      px === 0 ? ctx.moveTo(px, y) : ctx.lineTo(px, y)
+    }
     ctx.stroke()
   }, [bins, minDb, maxDb, width, height, color])
 
